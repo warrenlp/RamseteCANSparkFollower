@@ -11,23 +11,23 @@ import com.kauailabs.navx.frc.AHRS;
 import com.revrobotics.CANEncoder;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel;
-import edu.wpi.first.wpilibj.ADXRS450_Gyro;
-import edu.wpi.first.wpilibj.CAN;
-import edu.wpi.first.wpilibj.Encoder;
+import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.geometry.Pose2d;
 import edu.wpi.first.wpilibj.geometry.Rotation2d;
-import edu.wpi.first.wpilibj.interfaces.Gyro;
 import edu.wpi.first.wpilibj.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.wpilibj.kinematics.DifferentialDriveWheelSpeeds;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.CANSparkMaxSmartVelocity;
 
 import static frc.robot.Constants.DriveConstants.*;
 
 public class DriveSubsystem extends SubsystemBase
 {
-    private final CANSparkMax leftMaster = new CANSparkMax(LEFT_MASTER_MOTOR, CANSparkMaxLowLevel.MotorType.kBrushless);
-    private final CANSparkMax rightMaster = new CANSparkMax(RIGHT_MASTER_MOTOR, CANSparkMaxLowLevel.MotorType.kBrushless);
+    private final CANSparkMax leftMaster = new CANSparkMaxSmartVelocity(LEFT_MASTER_MOTOR, CANSparkMaxLowLevel.MotorType.kBrushless);
+    private final CANSparkMax rightMaster = new CANSparkMaxSmartVelocity(RIGHT_MASTER_MOTOR, CANSparkMaxLowLevel.MotorType.kBrushless);
 
     // The robot's drive
     private final DifferentialDrive drive;
@@ -42,13 +42,19 @@ public class DriveSubsystem extends SubsystemBase
     // Odometry class for tracking robot pose
     private final DifferentialDriveOdometry odometry;
 
+    private ShuffleboardTab m_tab;
+    private NetworkTableEntry leftEncoderDistanceEntry;
+    private NetworkTableEntry rightEncoderDistanceEntry;
+    private NetworkTableEntry leftEncoderSpeedEntry;
+    private NetworkTableEntry rightEncoderSpeedEntry;
+
     /**
      * Creates a new DriveSubsystem.
      */
     public DriveSubsystem()
     {
-        CANSparkMax leftSlave = new CANSparkMax(LEFT_SLAVE_MOTOR, CANSparkMaxLowLevel.MotorType.kBrushless);
-        CANSparkMax rightSlave = new CANSparkMax(RIGHT_SLAVE_MOTOR, CANSparkMaxLowLevel.MotorType.kBrushless);
+        CANSparkMax leftSlave = new CANSparkMaxSmartVelocity(LEFT_SLAVE_MOTOR, CANSparkMaxLowLevel.MotorType.kBrushless);
+        CANSparkMax rightSlave = new CANSparkMaxSmartVelocity(RIGHT_SLAVE_MOTOR, CANSparkMaxLowLevel.MotorType.kBrushless);
         
         leftSlave.follow(leftMaster);
         rightSlave.follow(rightMaster);
@@ -63,6 +69,13 @@ public class DriveSubsystem extends SubsystemBase
 
         resetEncoders();
         odometry = new DifferentialDriveOdometry(Rotation2d.fromDegrees(getHeading()));
+
+        // Configure ShuffleBoard
+        m_tab = Shuffleboard.getTab("DriveSubsystem");
+        leftEncoderDistanceEntry = m_tab.add("Left Encoder Distance", 0.0).getEntry();
+        rightEncoderDistanceEntry = m_tab.add("Right Encoder Distance", 0.0).getEntry();
+        leftEncoderSpeedEntry = m_tab.add("Left Encoder Speed", 0.0).getEntry();
+        rightEncoderSpeedEntry = m_tab.add("Right Encoder Speed", 0.0).getEntry();
     }
 
     @Override
@@ -72,6 +85,10 @@ public class DriveSubsystem extends SubsystemBase
         odometry.update(Rotation2d.fromDegrees(getHeading()), leftEncoder.getPosition(), rightEncoder.getPosition());
 
         // Broadcast critical parameters to ShuffleBoard.
+        leftEncoderDistanceEntry.setDouble(leftEncoder.getPosition());
+        leftEncoderDistanceEntry.setDouble(rightEncoder.getPosition());
+        leftEncoderSpeedEntry.setDouble(leftEncoder.getVelocity());
+        rightEncoderSpeedEntry.setDouble(rightEncoder.getVelocity());
     }
 
     /**
@@ -126,6 +143,12 @@ public class DriveSubsystem extends SubsystemBase
     {
         leftMaster.setVoltage(leftVolts);
         rightMaster.setVoltage(-rightVolts);
+    }
+
+    public void tankDrive(double leftMPS, double rightMPS)
+    {
+        leftMaster.set(leftMPS);
+        rightMaster.setVoltage(rightMPS);
     }
 
     /**
