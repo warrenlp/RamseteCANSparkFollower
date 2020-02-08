@@ -19,6 +19,7 @@ import edu.wpi.first.wpilibj.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.wpilibj.kinematics.DifferentialDriveWheelSpeeds;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.CANSparkMaxSmartVelocity;
 
@@ -42,7 +43,7 @@ public class DriveSubsystem extends SubsystemBase
     // Odometry class for tracking robot pose
     private final DifferentialDriveOdometry odometry;
 
-    private ShuffleboardTab m_tab;
+    private NetworkTableEntry gyroHeadingEntry;
     private NetworkTableEntry leftEncoderDistanceEntry;
     private NetworkTableEntry rightEncoderDistanceEntry;
     private NetworkTableEntry leftEncoderSpeedEntry;
@@ -53,6 +54,11 @@ public class DriveSubsystem extends SubsystemBase
      */
     public DriveSubsystem()
     {
+        System.out.println("ENCODER_DISTANCE" + ENCODER_DISTANCE);
+        System.out.println("RPM_TO_MPS" + RPM_TO_MPS);
+
+        rightMaster.setInverted(true);
+
         CANSparkMax leftSlave = new CANSparkMaxSmartVelocity(LEFT_SLAVE_MOTOR, CANSparkMaxLowLevel.MotorType.kBrushless);
         CANSparkMax rightSlave = new CANSparkMaxSmartVelocity(RIGHT_SLAVE_MOTOR, CANSparkMaxLowLevel.MotorType.kBrushless);
         
@@ -62,20 +68,23 @@ public class DriveSubsystem extends SubsystemBase
         leftEncoder = leftMaster.getEncoder();
         rightEncoder = rightMaster.getEncoder();
 
-        leftEncoder.setPositionConversionFactor(ENCODER_DISTANCE_MPS);
-        rightEncoder.setPositionConversionFactor(ENCODER_DISTANCE_MPS);
+        leftEncoder.setPositionConversionFactor(ENCODER_DISTANCE);
+        rightEncoder.setPositionConversionFactor(ENCODER_DISTANCE);
 
         drive = new DifferentialDrive(leftMaster, rightMaster);
+        drive.setRightSideInverted(false);
+        drive.setSafetyEnabled(false);
 
         resetEncoders();
         odometry = new DifferentialDriveOdometry(Rotation2d.fromDegrees(getHeading()));
 
         // Configure ShuffleBoard
-        m_tab = Shuffleboard.getTab("DriveSubsystem");
-        leftEncoderDistanceEntry = m_tab.add("Left Encoder Distance", 0.0).getEntry();
-        rightEncoderDistanceEntry = m_tab.add("Right Encoder Distance", 0.0).getEntry();
-        leftEncoderSpeedEntry = m_tab.add("Left Encoder Speed", 0.0).getEntry();
-        rightEncoderSpeedEntry = m_tab.add("Right Encoder Speed", 0.0).getEntry();
+        ShuffleboardTab tab = Shuffleboard.getTab("DriveSubsystem");
+        gyroHeadingEntry = tab.add("Gyro Heading", 0.0).getEntry();
+        leftEncoderDistanceEntry = tab.add("Left Encoder Distance", 0.0).getEntry();
+        rightEncoderDistanceEntry = tab.add("Right Encoder Distance", 0.0).getEntry();
+        leftEncoderSpeedEntry = tab.add("Left Encoder Speed", 0.0).getEntry();
+        rightEncoderSpeedEntry = tab.add("Right Encoder Speed", 0.0).getEntry();
     }
 
     @Override
@@ -85,8 +94,9 @@ public class DriveSubsystem extends SubsystemBase
         odometry.update(Rotation2d.fromDegrees(getHeading()), leftEncoder.getPosition(), rightEncoder.getPosition());
 
         // Broadcast critical parameters to ShuffleBoard.
+        gyroHeadingEntry.setDouble(getHeading());
         leftEncoderDistanceEntry.setDouble(leftEncoder.getPosition());
-        leftEncoderDistanceEntry.setDouble(rightEncoder.getPosition());
+        rightEncoderDistanceEntry.setDouble(rightEncoder.getPosition());
         leftEncoderSpeedEntry.setDouble(leftEncoder.getVelocity());
         rightEncoderSpeedEntry.setDouble(rightEncoder.getVelocity());
     }
@@ -128,7 +138,7 @@ public class DriveSubsystem extends SubsystemBase
      * @param fwd the commanded forward movement
      * @param rot the commanded rotation
      */
-    public void arcadeDrive(double fwd, double rot)
+    public void  arcadeDrive(double fwd, double rot)
     {
         drive.arcadeDrive(fwd, rot);
     }
@@ -145,10 +155,28 @@ public class DriveSubsystem extends SubsystemBase
         rightMaster.setVoltage(-rightVolts);
     }
 
-    public void tankDrive(double leftMPS, double rightMPS)
+    public void tankDrive(double leftRPM, double rightRPM)
     {
-        leftMaster.set(leftMPS);
-        rightMaster.setVoltage(rightMPS);
+        SmartDashboard.putNumber("tankDrive left RPM", leftRPM);
+        SmartDashboard.putNumber("tankDrive right RPM", rightRPM);
+
+        leftMaster.set(leftRPM);
+        rightMaster.set(rightRPM);
+    }
+
+    public void tankDriveMPS(double leftMPS, double rightMPS)
+    {
+        SmartDashboard.putNumber("tankDrive left MPS", leftMPS);
+        SmartDashboard.putNumber("tankDrive right MPS", rightMPS);
+
+        double leftRPM = leftMPS * MPS_TO_RPM;
+        double rightRPM = rightMPS * MPS_TO_RPM;
+
+        SmartDashboard.putNumber("tankDrive left RPM", leftRPM);
+        SmartDashboard.putNumber("tankDrive right RPM", rightRPM);
+
+        leftMaster.set(leftRPM);
+        rightMaster.set(rightRPM);
     }
 
     /**

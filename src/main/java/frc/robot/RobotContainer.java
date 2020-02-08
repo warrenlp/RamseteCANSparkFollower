@@ -60,7 +60,7 @@ public class RobotContainer
                 // A split-stick arcade command, with forward/backward controlled by the left
                 // hand, and turning controlled by the right.
                 new RunCommand(() -> robotDrive.arcadeDrive(
-                                driverController.getY(GenericHID.Hand.kLeft),
+                                -driverController.getY(GenericHID.Hand.kLeft),
                                 driverController.getX(GenericHID.Hand.kRight)), robotDrive));
 
     }
@@ -105,28 +105,28 @@ public class RobotContainer
         TrajectoryConfig config =
                 new TrajectoryConfig(MAX_SPEED_METERS_PER_SECOND, MAX_ACCELERATION_METERS_PER_SECOND_SQUARED)
                         // Add kinematics to ensure max speed is actually obeyed
-                        .setKinematics(DRIVE_KINEMATICS)
+                        .setKinematics(DRIVE_KINEMATICS);
                         // Apply the voltage constraint
-                        .addConstraint(autoVoltageConstraint);
+//                        .addConstraint(autoVoltageConstraint);
 
         // An example trajectory to follow.  All units in meters.
         Trajectory exampleTrajectory = TrajectoryGenerator.generateTrajectory(
                 // Start at the origin facing the +X direction
                 new Pose2d(0, 0, new Rotation2d(0)),
                 List.of(
-                        new Translation2d(0.5, 0)
+//                        new Translation2d(1.5, 1.5)
                 ),
-                new Pose2d(1, 0, new Rotation2d(0)),
+                new Pose2d(2.0, 2.0, Rotation2d.fromDegrees(90)),
                 // Pass config
                 config
         );
 
-        RamseteCommand ramseteCommand = new RamseteCommand(
+        RamseteCommand ramseteCommand = new RamseteWrapper(
                 exampleTrajectory,
                 robotDrive::getPose,
                 new RamseteController(RAMSETE_B, RAMSETE_ZETA),
                 DRIVE_KINEMATICS,
-                robotDrive::tankDrive,
+                robotDrive::tankDriveMPS,
                 robotDrive
         );
 
